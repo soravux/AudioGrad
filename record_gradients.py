@@ -8,11 +8,13 @@ from networks import Net
 import os
 import pickle
 
+from load_gradients import test
+
 
 def allocate_memory(model, n_samples):
     memory_dict = {}
     for name, val in model.state_dict().items():
-        memory_dict[name] = np.zeros((n_samples, *val.size()))
+        memory_dict[name] = np.zeros((n_samples, *val.size()), dtype=np.float16)
     return memory_dict
 
 
@@ -53,13 +55,27 @@ def run_main():
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=256, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(
+        datasets.MNIST('../data', train=False, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])),
+        batch_size=256, shuffle=True)
 
     model = Net(5).to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
-    for epoch in range(1, 6):
-        gradients = record_grad(model, device, train_loader, optimizer, n_steps=100)
-        pickle.dump(gradients, open(os.path.join(gradient_save_path, "{}.pkl".format(epoch)), "bw"))
 
+    # save initial weights
+    torch.save(model.state_dict(), os.path.join(gradient_save_path, "weights.pth"))
+    training_curve = []
+    for epoch in range(1, 6):
+        gradients = record_grad(model, device, train_loader, optimizer, n_steps=300)
+        # save epoch gradients
+        pickle.dump(gradients, open(os.path.join(gradient_save_path, "epoch_{}.pkl".format(epoch)), "bw"))
+        # save test results
+        loss, accuracy = test(model, device, test_loader)
+        training_curve.append([loss, accuracy])
+    np.savetxt(os.path.join(gradient_save_path, "train_original.txt"), np.array(training_curve))
 
 
 if __name__ == "__main__":

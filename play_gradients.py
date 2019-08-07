@@ -21,6 +21,10 @@ def generate_tone(fs, freq, duration):
 
 
 def run_main():
+    """
+    Load gradients and play their norm
+    :return:
+    """
 
     gradient_path = "gradients/test"
     epoch_files = [os.path.join(gradient_path, x) for x in os.listdir(gradient_path)]

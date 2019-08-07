@@ -45,6 +45,7 @@ def test(model, device, test_loader):
 
 def run_main():
     """
+    Load gradient and update a network weights (in open loop)
     key:value => conv1.weight : array [batch x chan x h x w]
     :return:
     """

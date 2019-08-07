@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from tqdm import tqdm
+
+from modem import Modem
 from networks import Net
 
 
@@ -24,6 +26,8 @@ def process(model_orig, device, train_loader, optimizer, gradient_func, n_steps=
         optimizer.zero_grad()
         output = model_orig(data)
         loss = F.nll_loss(output, target)
+        #if batch_idx % 5 == 0:
+        print("Train loss : {}".format(loss))
         loss.backward()
         for state_name in model_orig.state_dict().keys():
             layer, state = state_name.split(".")
@@ -63,6 +67,7 @@ class GradientFunc:
                         channels=1,
                         rate=self.fs,
                         output=True)
+        self.modem = Modem()
 
     def __del__(self):
         self.stream.stop_stream()
@@ -77,13 +82,19 @@ class GradientFunc:
 
     def __call__(self, gradient):
 
+        """
+        # play gradients
         norm_grad = np.linalg.norm(gradient)
         tone = self.f + (norm_grad * 500.0)
         samples = self.generate_tone(self.fs, tone, self.duration).astype(np.float32)
-        # here we write to audio or wav file
-        self.stream.write(samples.flatten().tobytes())
+        """
+        audio_out = self.modem.convert_data_to_audio(gradient.flatten())
+        decoded_gradients = self.modem.convert_audio_to_floats(audio_out)
 
-        return gradient
+        # if you want to regret being alive,
+        # self.stream.write(audio_out.tobytes())
+
+        return decoded_gradients.reshape(gradient.shape)
 
 
 def run_main():
@@ -105,7 +116,7 @@ def run_main():
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
         ])),
-        batch_size=256, shuffle=True)
+        batch_size=512, shuffle=True)
 
     model = Net(5).to(device)
     model.train()

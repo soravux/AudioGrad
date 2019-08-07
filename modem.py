@@ -1,4 +1,6 @@
 import ctypes
+from functools import lru_cache
+
 import numpy as np
 
 
@@ -17,7 +19,6 @@ class Modem:
         return format(ctypes.c_uint.from_buffer(ctypes.c_float(value)).value, '#034b')[2:]
 
     def dispatch(self, data):
-        global clock
         sound = []
         for value in data:
             subsound = []
@@ -31,6 +32,7 @@ class Modem:
         sound = np.asarray(sound).ravel()
         return sound
 
+    @lru_cache(maxsize=32)
     def tone(self, bit, freq):
         fact = freq + self.Fdev if bit == "1" else freq - self.Fdev
         m = fact * np.ones(self.t.size)
@@ -83,7 +85,10 @@ if __name__ == '__main__':
 
     modem = Modem()
 
+    import time
+    start = time.time()
     audio_out = modem.convert_data_to_audio(data)
-
+    print(time.time() - start)
     floats = modem.convert_audio_to_floats(audio_out)
+
     print(np.allclose(floats, data))
